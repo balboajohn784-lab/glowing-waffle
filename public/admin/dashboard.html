@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - TechFix IT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a href="/admin/dashboard.html" class="logo">💻 TechFix IT Admin</a>
+      <nav class="nav">
+        <button id="logout-btn" class="btn btn-danger btn-xs" style="width: auto;">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="page-header" style="text-align: left;">
+      <h1 class="page-title">Booking Management</h1>
+      <p class="page-subtitle">View, confirm, cancel, or delete customer repair reservations.</p>
+    </div>
+
+    <div id="banner" class="banner"></div>
+
+    <!-- Summary Statistics Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-title">Total Bookings</div>
+        <div id="stat-total" class="stat-card-value">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-title">Pending</div>
+        <div id="stat-pending" class="stat-card-value" style="color: var(--status-pending);">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-title">Confirmed</div>
+        <div id="stat-confirmed" class="stat-card-value" style="color: var(--status-confirmed);">0</div>
+      </div>
+    </div>
+
+    <!-- Controls Bar: Search & Status Filter -->
+    <div class="controls-bar">
+      <div class="search-box">
+        <input type="text" id="search-input" class="form-control" placeholder="Search by name, reference, email, or service...">
+      </div>
+      <div class="filter-box">
+        <select id="status-filter" class="form-control">
+          <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Service</th>
+            <th>Customer Name</th>
+            <th>Contact</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Items</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="bookings-tbody">
+          <tr>
+            <td colspan="9" class="loading-state">Loading bookings data...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; School IT Department Repair Activity. All rights reserved.</p>
+  </footer>
+
+  <script src="/js/main.js"></script>
+  <script>
+    let allBookings = [];
+
+    // Helper to handle API responses and redirect on 401 Unauthorized
+    async function apiFetch(url, options = {}) {
+      options.credentials = "same-origin";
+      const response = await fetch(url, options);
+
+      if (response.status === 401) {
+        window.location.href = "/admin/index.html";
+        throw new Error("Unauthorized access. Redirecting to login...");
+      }
+
+      return response;
+    }
+
+    // Fetch and render all bookings
+    async function fetchBookings() {
+      const tbody = document.getElementById("bookings-tbody");
+      try {
+        const response = await apiFetch("/api/admin/bookings");
+        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.error || "Failed to fetch bookings");
+
+        allBookings = data;
+        updateStats();
+        renderBookings();
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${err.message}</td></tr>`;
+      }
+    }
+
+    // Update Summary Statistics Cards
+    function updateStats() {
+      document.getElementById("stat-total").textContent = allBookings.length;
+      document.getElementById("stat-pending").textContent = allBookings.filter((b) => b.status === "pending").length;
+      document.getElementById("stat-confirmed").textContent = allBookings.filter((b) => b.status === "confirmed").length;
+    }
+
+    // Filter and Render Bookings into Table Rows
+    function renderBookings() {
+      const tbody = document.getElementById("bookings-tbody");
+      const searchTerm = document.getElementById("search-input").value.toLowerCase().trim();
+      const statusFilter = document.getElementById("status-filter").value;
+
+      const filtered = allBookings.filter((b) => {
+        const matchesStatus = statusFilter === "all" || b.status === statusFilter;
+        const matchesSearch =
+          b.reference.toLowerCase().includes(searchTerm) ||
+          b.name.toLowerCase().includes(searchTerm) ||
+          b.email.toLowerCase().includes(searchTerm) ||
+          b.service_name.toLowerCase().includes(searchTerm);
+
+        return matchesStatus && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No bookings found matching your search criteria.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map((b) => `
+        <tr>
+          <td><strong>${b.reference}</strong></td>
+          <td>${b.service_name}</td>
+          <td>${b.name}</td>
+          <td>${b.contact}<br><small style="color: var(--text-muted);">${b.email}</small></td>
+          <td>${formatDate(b.booking_date)}</td>
+          <td>${formatTime(b.booking_time)}</td>
+          <td>${b.guests}</td>
+          <td><span class="badge badge-${b.status}">${b.status}</span></td>
+          <td>
+            <div class="action-btn-group">
+              ${b.status !== "confirmed" ? `<button class="btn btn-primary btn-xs" onclick="confirmBooking('${b.id}')">Confirm</button>` : ""}
+              ${b.status !== "cancelled" ? `<button class="btn btn-secondary btn-xs" onclick="cancelBooking('${b.id}')">Cancel</button>` : ""}
+              <button class="btn btn-danger btn-xs" onclick="deleteBooking('${b.id}', '${b.reference}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    // Confirm Booking Action
+    async function confirmBooking(id) {
+      hideBanner();
+      try {
+        const response = await apiFetch(`/api/admin/bookings/${id}/confirm`, {
+          method: "PATCH"
+        });
+        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.error || "Failed to confirm booking");
+
+        showBanner("Booking confirmed successfully.");
+        fetchBookings();
+      } catch (err) {
+        showBanner(err.message, true);
+      }
+    }
+
+    // Cancel Booking Action
+    async function cancelBooking(id) {
+      hideBanner();
+      try {
+        const response = await apiFetch(`/api/admin/bookings/${id}/cancel`, {
+          method: "PATCH"
+        });
+        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.error || "Failed to cancel booking");
+
+        showBanner("Booking cancelled successfully.");
+        fetchBookings();
+      } catch (err) {
+        showBanner(err.message, true);
+      }
+    }
+
+    // Delete Booking Action
+    async function deleteBooking(id, reference) {
+      hideBanner();
+      if (!confirm(`Are you sure you want to permanently delete booking ${reference}?`)) {
+        return;
+      }
+
+      try {
+        const response = await apiFetch(`/api/admin/bookings/${id}`, {
+          method: "DELETE"
+        });
+        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.error || "Failed to delete booking");
+
+        showBanner("Booking deleted successfully.");
+        fetchBookings();
+      } catch (err) {
+        showBanner(err.message, true);
+      }
+    }
+
+    // Admin Logout Action
+    document.getElementById("logout-btn").addEventListener("click", async () => {
+      try {
+        await apiFetch("/api/admin/logout", { method: "POST" });
+        window.location.href = "/admin/index.html";
+      } catch (err) {
+        window.location.href = "/admin/index.html";
+      }
+    });
+
+    // Event Listeners for Live Search & Filtering
+    document.getElementById("search-input").addEventListener("input", renderBookings);
+    document.getElementById("status-filter").addEventListener("change", renderBookings);
+
+    // Initial load
+    document.addEventListener("DOMContentLoaded", fetchBookings);
+  </script>
+</body>
+</html>

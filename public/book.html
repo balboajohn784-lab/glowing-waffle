@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book a Repair Service - TechFix IT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="logo">💻 TechFix IT Services</a>
+      <nav class="nav">
+        <a href="/" class="nav-link">Services</a>
+        <a href="/status.html" class="nav-link">Check Status</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="form-container">
+      <div class="page-header">
+        <h1 class="page-title">Book an Appointment</h1>
+        <p class="page-subtitle">Fill out the details below to lock in your repair schedule.</p>
+      </div>
+
+      <div id="banner" class="banner"></div>
+
+      <form id="booking-form" novalidate>
+        <!-- Service Selection -->
+        <div class="form-group">
+          <label for="service_id" class="form-label">Selected Service *</label>
+          <select id="service_id" name="service_id" class="form-control">
+            <option value="">-- Select a Service --</option>
+          </select>
+          <div id="service_id-error" class="field-error"></div>
+        </div>
+
+        <!-- Booking Date -->
+        <div class="form-group">
+          <label for="booking_date" class="form-label">Preferred Date *</label>
+          <input type="date" id="booking_date" name="booking_date" class="form-control">
+          <div id="booking_date-error" class="field-error"></div>
+        </div>
+
+        <!-- Booking Time Slots -->
+        <div class="form-group">
+          <label class="form-label">Preferred Time Slot *</label>
+          <input type="hidden" id="booking_time" name="booking_time">
+          <div id="time-slots-container" class="time-slots-grid"></div>
+          <div id="booking_time-error" class="field-error"></div>
+        </div>
+
+        <!-- Number of Guests / Devices -->
+        <div class="form-group">
+          <label for="guests" class="form-label">Number of Items/Guests *</label>
+          <input type="number" id="guests" name="guests" class="form-control" min="1" value="1">
+          <div id="guests-error" class="field-error"></div>
+        </div>
+
+        <!-- Contact Name -->
+        <div class="form-group">
+          <label for="name" class="form-label">Full Name *</label>
+          <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Juan Cruz">
+          <div id="name-error" class="field-error"></div>
+        </div>
+
+        <!-- Contact Number -->
+        <div class="form-group">
+          <label for="contact" class="form-label">Contact Number *</label>
+          <input type="tel" id="contact" name="contact" class="form-control" placeholder="e.g. 09123456789">
+          <div id="contact-error" class="field-error"></div>
+        </div>
+
+        <!-- Email Address -->
+        <div class="form-group">
+          <label for="email" class="form-label">Email Address *</label>
+          <input type="email" id="email" name="email" class="form-control" placeholder="e.g. juan@example.com">
+          <div id="email-error" class="field-error"></div>
+        </div>
+
+        <!-- Notes -->
+        <div class="form-group">
+          <label for="notes" class="form-label">Issue Notes / Laptop Model (Optional)</label>
+          <textarea id="notes" name="notes" class="form-control" placeholder="Describe the problem with your device..."></textarea>
+          <div id="notes-error" class="field-error"></div>
+        </div>
+
+        <button type="submit" id="submit-btn" class="btn btn-primary">Submit Booking</button>
+      </form>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; School IT Department Repair Activity. All rights reserved.</p>
+  </footer>
+
+  <script src="/js/main.js"></script>
+  <script>
+    // Initialize Time Slot Buttons (7:00 AM to 5:00 PM in 30-min intervals)
+    function renderTimeSlots() {
+      const container = document.getElementById("time-slots-container");
+      const slots = [];
+      
+      for (let hour = 7; hour <= 17; hour++) {
+        for (let min = 0; min < 60; min += 30) {
+          if (hour === 17 && min > 0) break; // Stop at 17:00
+          
+          const formattedHour = String(hour).padStart(2, "0");
+          const formattedMin = String(min).padStart(2, "0");
+          const timeValue = `${formattedHour}:${formattedMin}`;
+          const displayLabel = formatTime(timeValue);
+          
+          slots.push({ value: timeValue, label: displayLabel });
+        }
+      }
+
+      container.innerHTML = slots.map((slot) => `
+        <button type="button" class="time-slot-btn" data-time="${slot.value}">
+          ${slot.label}
+        </button>
+      `).join("");
+
+      // Add click handlers for time slot buttons
+      container.querySelectorAll(".time-slot-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          container.querySelectorAll(".time-slot-btn").forEach((b) => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          document.getElementById("booking_time").value = btn.getAttribute("data-time");
+          
+          // Clear error if present
+          document.getElementById("booking_time-error").classList.remove("visible");
+        });
+      });
+    }
+
+    // Load available services for select dropdown
+    async function loadServicesDropdown() {
+      const select = document.getElementById("service_id");
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedServiceId = urlParams.get("service_id");
+
+      try {
+        const response = await fetch("/api/services");
+        const services = await response.json();
+
+        if (!response.ok) throw new Error("Failed to load services");
+
+        services.forEach((service) => {
+          const option = document.createElement("option");
+          option.value = service.id;
+          option.textContent = `${service.name} (${formatPesos(service.price)})`;
+          if (service.id === preselectedServiceId) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+      } catch (err) {
+        showBanner(err.message, true);
+      }
+    }
+
+    // Set minimum date on datepicker to Today
+    function setupDatePicker() {
+      const dateInput = document.getElementById("booking_date");
+      const today = new Date().toISOString().split("T")[0];
+      dateInput.min = today;
+    }
+
+    // Form Client-side Validation
+    function validateForm() {
+      clearErrorMessages();
+      let isValid = true;
+
+      const serviceId = document.getElementById("service_id").value;
+      const bookingDate = document.getElementById("booking_date").value;
+      const bookingTime = document.getElementById("booking_time").value;
+      const guests = document.getElementById("guests").value;
+      const name = document.getElementById("name").value.trim();
+      const contact = document.getElementById("contact").value.trim();
+      const email = document.getElementById("email").value.trim();
+
+      if (!serviceId) {
+        showFieldError("service_id", "Please select a service.");
+        isValid = false;
+      }
+
+      if (!bookingDate) {
+        showFieldError("booking_date", "Please select a booking date.");
+        isValid = false;
+      } else {
+        const selectedDate = new Date(bookingDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedDate < today) {
+          showFieldError("booking_date", "Booking date cannot be in the past.");
+          isValid = false;
+        }
+      }
+
+      if (!bookingTime) {
+        showFieldError("booking_time", "Please pick a time slot.");
+        isValid = false;
+      }
+
+      if (!guests || parseInt(guests, 10) < 1) {
+        showFieldError("guests", "Number of items must be at least 1.");
+        isValid = false;
+      }
+
+      if (!name) {
+        showFieldError("name", "Full name is required.");
+        isValid = false;
+      }
+
+      if (!contact) {
+        showFieldError("contact", "Contact number is required.");
+        isValid = false;
+      }
+
+      if (!email) {
+        showFieldError("email", "Email address is required.");
+        isValid = false;
+      } else if (!/\S+@\S+\.\S+/.test(email)) {
+        showFieldError("email", "Please enter a valid email address.");
+        isValid = false;
+      }
+
+      return isValid;
+    }
+
+    // Form Submission
+    document.getElementById("booking-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideBanner();
+
+      if (!validateForm()) return;
+
+      const submitBtn = document.getElementById("submit-btn");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting Booking...";
+
+      const payload = {
+        service_id: document.getElementById("service_id").value,
+        booking_date: document.getElementById("booking_date").value,
+        booking_time: document.getElementById("booking_time").value,
+        guests: parseInt(document.getElementById("guests").value, 10),
+        name: document.getElementById("name").value.trim(),
+        contact: document.getElementById("contact").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        notes: document.getElementById("notes").value.trim()
+      };
+
+      try {
+        const response = await fetch("/api/bookings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to submit booking");
+        }
+
+        // Redirect to confirmation page with reference number
+        window.location.href = `/confirmation.html?ref=${data.reference}`;
+      } catch (err) {
+        showBanner(err.message, true);
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Booking";
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderTimeSlots();
+      loadServicesDropdown();
+      setupDatePicker();
+    });
+  </script>
+</body>
+</html>

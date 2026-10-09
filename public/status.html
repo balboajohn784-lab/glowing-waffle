@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Check Booking Status - TechFix IT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: var(--space-md);
+    }
+    .summary-table td {
+      padding: var(--space-sm) 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .summary-table td:first-child {
+      font-weight: 600;
+      color: var(--text-muted);
+      width: 40%;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="logo">💻 TechFix IT Services</a>
+      <nav class="nav">
+        <a href="/" class="nav-link">Services</a>
+        <a href="/status.html" class="nav-link active">Check Status</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="form-container">
+      <div class="page-header">
+        <h1 class="page-title">Lookup Your Booking</h1>
+        <p class="page-subtitle">Enter your reference code (e.g. BK123456) to check your schedule status.</p>
+      </div>
+
+      <div id="banner" class="banner"></div>
+
+      <form id="search-form" style="margin-bottom: var(--space-lg);">
+        <div class="form-group">
+          <label for="reference_input" class="form-label">Booking Reference Number *</label>
+          <input type="text" id="reference_input" class="form-control" placeholder="BKXXXXXX" style="text-transform: uppercase;">
+          <div id="reference_input-error" class="field-error"></div>
+        </div>
+        <button type="submit" id="search-btn" class="btn btn-primary">Find Booking</button>
+      </form>
+
+      <div id="result-container"></div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; School IT Department Repair Activity. All rights reserved.</p>
+  </footer>
+
+  <script src="/js/main.js"></script>
+  <script>
+    async function searchBooking(refCode) {
+      const resultContainer = document.getElementById("result-container");
+      const searchBtn = document.getElementById("search-btn");
+
+      clearErrorMessages();
+      hideBanner();
+
+      if (!refCode) {
+        showFieldError("reference_input", "Please enter a reference code.");
+        return;
+      }
+
+      searchBtn.disabled = true;
+      searchBtn.textContent = "Searching...";
+      resultContainer.innerHTML = `<div class="loading-state">Searching for booking details...</div>`;
+
+      try {
+        const response = await fetch(`/api/bookings/${refCode.trim().toUpperCase()}`);
+        const booking = await response.json();
+
+        if (!response.ok) {
+          throw new Error(booking.error || "Booking reference not found.");
+        }
+
+        resultContainer.innerHTML = `
+          <div class="card" style="box-shadow: none;">
+            <h2 class="card-title">Booking Details</h2>
+            <table class="summary-table">
+              <tr>
+                <td>Reference</td>
+                <td><strong>${booking.reference}</strong></td>
+              </tr>
+              <tr>
+                <td>Status</td>
+                <td><span class="badge badge-${booking.status}">${booking.status}</span></td>
+              </tr>
+              <tr>
+                <td>Service</td>
+                <td>${booking.service_name}</td>
+              </tr>
+              <tr>
+                <td>Price</td>
+                <td>${formatPesos(booking.service_price)}</td>
+              </tr>
+              <tr>
+                <td>Date</td>
+                <td>${formatDate(booking.booking_date)}</td>
+              </tr>
+              <tr>
+                <td>Time Slot</td>
+                <td>${formatTime(booking.booking_time)}</td>
+              </tr>
+              <tr>
+                <td>Items / Guests</td>
+                <td>${booking.guests}</td>
+              </tr>
+              <tr>
+                <td>Customer Name</td>
+                <td>${booking.name}</td>
+              </tr>
+              <tr>
+                <td>Contact</td>
+                <td>${booking.contact}</td>
+              </tr>
+              <tr>
+                <td>Email</td>
+                <td>${booking.email}</td>
+              </tr>
+              ${booking.notes ? `
+              <tr>
+                <td>Notes</td>
+                <td>${booking.notes}</td>
+              </tr>` : ""}
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        resultContainer.innerHTML = "";
+        showBanner(err.message, true);
+      } finally {
+        searchBtn.disabled = false;
+        searchBtn.textContent = "Find Booking";
+      }
+    }
+
+    document.getElementById("search-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const refCode = document.getElementById("reference_input").value;
+      searchBooking(refCode);
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refParam = urlParams.get("ref");
+      if (refParam) {
+        document.getElementById("reference_input").value = refParam;
+        searchBooking(refParam);
+      }
+    });
+  </script>
+</body>
+</html>

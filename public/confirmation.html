@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking Confirmed - TechFix IT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .ref-box {
+      background-color: var(--status-confirmed-bg);
+      border: 2px dashed var(--status-confirmed);
+      border-radius: var(--radius-md);
+      padding: var(--space-lg);
+      text-align: center;
+      margin: var(--space-lg) 0;
+    }
+    .ref-number {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--status-confirmed);
+      letter-spacing: 2px;
+      margin-bottom: var(--space-sm);
+    }
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: var(--space-md);
+    }
+    .summary-table td {
+      padding: var(--space-sm) 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .summary-table td:first-child {
+      font-weight: 600;
+      color: var(--text-muted);
+      width: 40%;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="logo">💻 TechFix IT Services</a>
+      <nav class="nav">
+        <a href="/" class="nav-link">Services</a>
+        <a href="/status.html" class="nav-link">Check Status</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="form-container">
+      <div class="page-header">
+        <h1 class="page-title">🎉 Booking Submitted!</h1>
+        <p class="page-subtitle">Your appointment request has been recorded.</p>
+      </div>
+
+      <div id="banner" class="banner"></div>
+
+      <div id="content-container">
+        <div class="loading-state">Retrieving booking summary...</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; School IT Department Repair Activity. All rights reserved.</p>
+  </footer>
+
+  <script src="/js/main.js"></script>
+  <script>
+    async function loadConfirmation() {
+      const container = document.getElementById("content-container");
+      const urlParams = new URLSearchParams(window.location.search);
+      const reference = urlParams.get("ref");
+
+      if (!reference) {
+        container.innerHTML = `<div class="empty-state">No booking reference supplied. <br><br><a href="/" class="btn btn-primary">Back to Home</a></div>`;
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/bookings/${reference}`);
+        const booking = await response.json();
+
+        if (!response.ok) throw new Error(booking.error || "Could not load booking details");
+
+        container.innerHTML = `
+          <div class="ref-box">
+            <div class="page-subtitle">Your Reference Number</div>
+            <div class="ref-number" id="ref-code">${booking.reference}</div>
+            <button id="copy-btn" class="btn btn-secondary" style="width: auto;">📋 Copy Reference Code</button>
+          </div>
+
+          <h2 class="card-title" style="margin-top: 1.5rem;">Booking Details</h2>
+          <table class="summary-table">
+            <tr>
+              <td>Status</td>
+              <td><span class="badge badge-${booking.status}">${booking.status}</span></td>
+            </tr>
+            <tr>
+              <td>Service</td>
+              <td>${booking.service_name}</td>
+            </tr>
+            <tr>
+              <td>Price</td>
+              <td>${formatPesos(booking.service_price)}</td>
+            </tr>
+            <tr>
+              <td>Date</td>
+              <td>${formatDate(booking.booking_date)}</td>
+            </tr>
+            <tr>
+              <td>Time</td>
+              <td>${formatTime(booking.booking_time)}</td>
+            </tr>
+            <tr>
+              <td>Items / Guests</td>
+              <td>${booking.guests}</td>
+            </tr>
+            <tr>
+              <td>Customer Name</td>
+              <td>${booking.name}</td>
+            </tr>
+            <tr>
+              <td>Contact Number</td>
+              <td>${booking.contact}</td>
+            </tr>
+            <tr>
+              <td>Email</td>
+              <td>${booking.email}</td>
+            </tr>
+            ${booking.notes ? `
+            <tr>
+              <td>Notes</td>
+              <td>${booking.notes}</td>
+            </tr>` : ""}
+          </table>
+
+          <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+            <a href="/status.html?ref=${booking.reference}" class="btn btn-primary">Track Status</a>
+            <a href="/" class="btn btn-secondary">Done</a>
+          </div>
+        `;
+
+        // Setup copy button behavior
+        document.getElementById("copy-btn").addEventListener("click", () => {
+          navigator.clipboard.writeText(booking.reference);
+          showBanner("Reference code copied to clipboard!");
+        });
+
+      } catch (err) {
+        container.innerHTML = "";
+        showBanner(err.message, true);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadConfirmation);
+  </script>
+</body>
+</html>

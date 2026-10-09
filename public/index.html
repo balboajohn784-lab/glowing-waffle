@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IT Repair Shop - Available Services</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="logo">💻 TechFix IT Services</a>
+      <nav class="nav">
+        <a href="/" class="nav-link active">Services</a>
+        <a href="/status.html" class="nav-link">Check Status</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-title">Computer Repair & Diagnostics</h1>
+      <p class="page-subtitle">Select a service below to schedule an appointment with our school IT lab technicians.</p>
+    </div>
+
+    <div id="banner" class="banner"></div>
+
+    <div id="services-container" class="cards-grid">
+      <div class="loading-state">Loading available services...</div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; School IT Department Repair Activity. All rights reserved.</p>
+  </footer>
+
+  <script src="/js/main.js"></script>
+  <script>
+    async function loadServices() {
+      const container = document.getElementById("services-container");
+      try {
+        const response = await fetch("/api/services");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load services");
+        }
+
+        if (data.length === 0) {
+          container.innerHTML = `<div class="empty-state">No repair services are currently available.</div>`;
+          return;
+        }
+
+        container.innerHTML = data.map((service) => `
+          <div class="card">
+            <div>
+              <h2 class="card-title">${service.name}</h2>
+              <p class="card-description">${service.description}</p>
+            </div>
+            <div>
+              <div class="card-price">${formatPesos(service.price)}</div>
+              <a href="/book.html?service_id=${service.id}" class="btn btn-primary">Book Now</a>
+            </div>
+          </div>
+        `).join("");
+
+      } catch (err) {
+        container.innerHTML = "";
+        showBanner(err.message, true);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadServices);
+  </script>
+</body>
+</html>

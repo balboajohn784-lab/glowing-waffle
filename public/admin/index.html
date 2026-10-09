@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login - TechFix IT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="logo">💻 TechFix IT Admin</a>
+      <nav class="nav">
+        <a href="/" class="nav-link">Main Site</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="form-container" style="margin-top: 2rem;">
+      <div class="page-header">
+        <h1 class="page-title">Admin Portal Login</h1>
+        <p class="page-subtitle">Enter your administrative credentials to manage bookings.</p>
+      </div>
+
+      <div id="banner" class="banner"></div>
+
+      <form id="login-form" novalidate>
+        <div class="form-group">
+          <label for="username" class="form-label">Username *</label>
+          <input type="text" id="username" name="username" class="form-control" placeholder="Enter username" required>
+          <div id="username-error" class="field-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">Password *</label>
+          <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required>
+          <div id="password-error" class="field-error"></div>
+        </div>
+
+        <button type="submit" id="login-btn" class="btn btn-primary">Log In</button>
+      </form>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; School IT Department Repair Activity. All rights reserved.</p>
+  </footer>
+
+  <script src="/js/main.js"></script>
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearErrorMessages();
+      hideBanner();
+
+      const usernameInput = document.getElementById("username");
+      const passwordInput = document.getElementById("password");
+      const loginBtn = document.getElementById("login-btn");
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+      let isValid = true;
+      if (!username) {
+        showFieldError("username", "Username is required.");
+        isValid = false;
+      }
+
+      if (!password) {
+        showFieldError("password", "Password is required.");
+        isValid = false;
+      }
+
+      if (!isValid) return;
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Authenticating...";
+
+      try {
+        const response = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Authentication failed.");
+        }
+
+        // Redirect to dashboard on successful login
+        window.location.href = "/admin/dashboard.html";
+      } catch (err) {
+        showBanner(err.message, true);
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Log In";
+      }
+    });
+  </script>
+</body>
+</html>
